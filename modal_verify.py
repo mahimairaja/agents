@@ -15,6 +15,7 @@ import modal
 SHA = os.environ.get("HF_SPEECH_SHA", "e584fbecaa0749342d96941ad170edf8e449d567")
 # the secret must be attached the same way locally and in the container
 HF_SECRET = os.environ.get("HF_SECRET", "huggingface")
+GPU = os.environ.get("HF_SPEECH_GPU", "H100")
 REPO = "git+https://github.com/mahimairaja/agents"
 
 image = (
@@ -40,7 +41,7 @@ SUNFLOWER_TOKENS = {"eng": 50259, "swa": 50318, "lug": 50332}
 
 
 @app.function(
-    gpu="L4",
+    gpu=GPU,
     timeout=3600,
     volumes={"/cache": volume},
     secrets=[modal.Secret.from_name(HF_SECRET)] if HF_SECRET else [],
@@ -109,6 +110,20 @@ def verify() -> dict:
             err = streamed[:m] - np.clip(full[:m], -1, 1)
             entry["stream_vs_full_snr_db"] = round(float(10 * np.log10(np.sum(full[:m] ** 2) / max(np.sum(err**2), 1e-12))), 1)
             entry["frames"] = n
+            # how much context each streaming window needs to match one full decode
+            sweep = {}
+            tokens = [hf_tts._START_OF_SPEECH] + [
+                hf_tts._AUDIO_TOKEN_BASE + (i % 7) * 4096 + c for i, c in enumerate(codes[: n * 7])
+            ]
+            for left, right, chunk in [(2, 1, 4), (4, 1, 4), (4, 2, 4), (8, 2, 4), (8, 4, 4), (4, 2, 8)]:
+                dec = hf_tts._SnacStreamDecoder(chunk_frames=chunk, left_context=left, right_context=right)
+                windows = [w for t in tokens if (w := dec.push(t)) is not None]
+                if (w := dec.flush()) is not None:
+                    windows.append(w)
+                out = np.concatenate([hf_tts._decode_snac(loaded, w) for w in windows])[:m]
+                e2 = out - full[:m]
+                sweep[f"L{left}R{right}C{chunk}"] = round(float(10 * np.log10(np.sum(full[:m] ** 2) / max(np.sum(e2**2), 1e-12))), 1)
+            entry["context_sweep_snr_db"] = sweep
         sf.write(f"/cache/out/{name}.wav", pcm, tts.sample_rate)
         results["tts"].append(entry)
         print(json.dumps(entry))
