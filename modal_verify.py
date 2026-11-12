@@ -12,8 +12,9 @@ import os
 
 import modal
 
-SHA = os.environ.get("HF_SPEECH_SHA", "feat/hf-tts-plugin")
-HF_SECRET = os.environ.get("HF_SECRET")
+SHA = os.environ.get("HF_SPEECH_SHA", "e584fbecaa0749342d96941ad170edf8e449d567")
+# the secret must be attached the same way locally and in the container
+HF_SECRET = os.environ.get("HF_SECRET", "huggingface")
 REPO = "git+https://github.com/mahimairaja/agents"
 
 image = (
@@ -25,7 +26,7 @@ image = (
         "jiwer==3.1.0",
         "soundfile==0.13.1",
     )
-    .env({"HF_HOME": "/cache/hf", "HF_HUB_ENABLE_HF_TRANSFER": "0"})
+    .env({"HF_HOME": "/cache/hf", "HF_HUB_ENABLE_HF_TRANSFER": "0", "HF_SPEECH_HOSTED": "1"})
 )
 volume = modal.Volume.from_name("hf-speech-cache", create_if_missing=True)
 app = modal.App("hf-speech-verify", image=image)
@@ -176,6 +177,28 @@ def verify() -> dict:
             if "orpheus_eng" in audio:
                 pcm, rate, ref = audio["orpheus_eng"]
                 await recognize("sunflower_orpheus_eng", sunflower, pcm, rate, ref, "eng")
+
+        if os.environ.get("HF_SPEECH_HOSTED") == "1" and has_token:
+            # hosted mode: nothing loads locally; providers bill the HF account
+            results["hosted"] = []
+            pcm, rate, ref = audio["mms_eng"]
+            for provider in ("hf-inference", "fal-ai"):
+                try:
+                    hosted_stt = hf.STT(model="openai/whisper-large-v3-turbo" if provider == "hf-inference" else "openai/whisper-large-v3", provider=provider, language="en")
+                    await recognize(f"hosted_stt_{provider}", hosted_stt, pcm, rate, ref, "en")
+                except Exception as e:
+                    results["hosted"].append({"stt": provider, "error": f"{type(e).__name__}: {e}"[:300]})
+            for provider in ("fal-ai", "deepinfra"):
+                try:
+                    hosted_tts = hf.TTS(model="hexgrad/Kokoro-82M", provider=provider, voice="af_heart")
+                    t0 = time.perf_counter()
+                    frames = [a.frame async for a in hosted_tts.synthesize(TEXTS["eng"])]
+                    dur = sum(f.duration for f in frames)
+                    results["hosted"].append({"tts": provider, "ttfb_s": round(time.perf_counter() - t0, 3), "audio_s": round(dur, 2)})
+                    pcm_h = np.concatenate([np.frombuffer(f.data, dtype=np.int16) for f in frames])
+                    await recognize(f"hosted_tts_{provider}_roundtrip", whisper, pcm_h, frames[0].sample_rate, TEXTS["eng"], "en")
+                except Exception as e:
+                    results["hosted"].append({"tts": provider, "error": f"{type(e).__name__}: {e}"[:300]})
 
         results["gpu_mem_gb"] = round(torch.cuda.max_memory_allocated() / 1e9, 1)
 
