@@ -1,7 +1,7 @@
 <!-- claude-projects-attribution: {"github_login":"mahimairaja"} -->
 _Requested by **Mahimai** · [project thread](https://claude.ai/code/project/chan_01ShZjNBhSgQgUj4vRoEC8CF?thread=cmsg_01ShZjNBhSgQgUj4vRoEC8CFQbZ8KTyrm7guRt88wVRdCQ)_
 
-Part of #5351. Stacked on #<STT PR>.
+Part of #5351. Draft, stacked on #7731 and #<STT PR>: review only the last commit (`feat(hf): add local text-to-speech with transformers`).
 
 **After:** `hf.TTS(model=...)` runs two model families in-process, picked from the config:
 

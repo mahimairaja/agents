@@ -1,7 +1,7 @@
 <!-- claude-projects-attribution: {"github_login":"mahimairaja"} -->
 _Requested by **Mahimai** · [project thread](https://claude.ai/code/project/chan_01ShZjNBhSgQgUj4vRoEC8CF?thread=cmsg_01ShZjNBhSgQgUj4vRoEC8CFQbZ8KTyrm7guRt88wVRdCQ)_
 
-Part of #5351. Stacked on #7731 (the first commit here is #7731's head); I'll rebase once it merges.
+Part of #5351. Draft, stacked on #7731: review only the last commit (`feat(hf): add local speech-to-text with transformers`) until #7731 merges, then I'll rebase and mark it ready.
 
 **Before:** `livekit-plugins-hf` ran chat models only, so an open STT model meant a separate server.
 

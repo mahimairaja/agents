@@ -1,7 +1,7 @@
 <!-- claude-projects-attribution: {"github_login":"mahimairaja"} -->
 _Requested by **Mahimai** · [project thread](https://claude.ai/code/project/chan_01ShZjNBhSgQgUj4vRoEC8CF?thread=cmsg_01ShZjNBhSgQgUj4vRoEC8CFQbZ8KTyrm7guRt88wVRdCQ)_
 
-Part of #5351. Stacked on #<TTS PR>.
+Part of #5351. Draft, stacked on #7731, #<STT PR> and #<TTS PR>: review only the last two commits (`feat(hf): run STT and TTS on ...` and `docs(hf): note hosted TTS latency ...`).
 
 In-process inference suits development and single GPU boxes, but in production it ties model memory to every job process. `hf.STT` and `hf.TTS` now take:
 
